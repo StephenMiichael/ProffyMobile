@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, ScrollView, Text, TextInput } from 'react-native';
 import { BorderlessButton, RectButton } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons'
+import AsyncStorage from '@react-native-community/async-storage';
 
 import PageHeader from '../../components/PageHeader';
 import TeacherItem, { Teacher } from '../../components/TeacherItem';
@@ -9,28 +10,48 @@ import TeacherItem, { Teacher } from '../../components/TeacherItem';
 import api from '../../services/api';
 
 import styles from './styles';
+import { useFocusEffect } from '@react-navigation/native';
 
 function TeacherList() {
     const [teachers, setTeachers] = useState([]);
+    const [favorites, setFavorites] = useState<number[]>([]);
     const [isFiltersVisible, setIsFiltersVisible] = useState(false);
 
     const [subject, setSubject] = useState('');
     const [week_day, setWeekDay] = useState('');
     const [time, setTime] = useState('');
 
+    function loadFavorites() {
+        AsyncStorage.getItem('favorites').then(response => {
+            if (response) {
+                const favoritedTeachers = JSON.parse(response);
+                const favoritedTeachersIds = favoritedTeachers.map((teacher: Teacher) => {
+                    return teacher.id;
+                })
+
+                setFavorites(favoritedTeachersIds);
+            }
+        });
+    }
+
+    // Precisa de uma alteração para remover os favoritos da página de não favoritos...
+    // useFocusEffect(() => {
+    //     loadFavorites();
+    // });
+
     function handleToogleFiltersVisible() {
         setIsFiltersVisible(!isFiltersVisible);
     }
 
-    async function handleFiltersSubmit(){
-        const response = await api.get('classes',{
+    async function handleFiltersSubmit() {
+        loadFavorites();
+        const response = await api.get('classes', {
             params: {
                 subject,
                 week_day,
                 time,
             }
         });
-
         setIsFiltersVisible(false);
         setTeachers(response.data);
     }
@@ -80,9 +101,9 @@ function TeacherList() {
                             </View>
                         </View>
 
-                        <RectButton 
-                        style={styles.submitButton}
-                        onPress={handleFiltersSubmit}                        
+                        <RectButton
+                            style={styles.submitButton}
+                            onPress={handleFiltersSubmit}
                         >
                             <Text style={styles.submitButtonText}>Filtrar</Text>
                         </RectButton>
@@ -98,7 +119,11 @@ function TeacherList() {
                 }}
             >
                 {teachers.map((teacher: Teacher) => {
-                    return <TeacherItem key={teacher.id} teacher={teacher} />
+                    return <TeacherItem
+                        key={teacher.id}
+                        teacher={teacher}
+                        favorited={favorites.includes(teacher.id)}
+                    />
                 })}
             </ScrollView>
         </View>
